@@ -1,23 +1,27 @@
-name: Dependabot auto-merge
-on: pull_request
+jobs:
+  dependabot:
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    runs-on: self-hosted
+    steps:
+    - continue-on-error: true
+      id: metadata
+      name: Dependabot metadata
+      uses: dependabot/fetch-metadata@v2.1.0
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    - continue-on-error: true
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        PR_URL: ${{github.event.pull_request.html_url}}
+      name: Enable auto-merge for Dependabot PRs
+      run: 'gh pr merge "$PR_URL" --auto --squash --body="Co-authored-by: Boni Garcia
+        <boni.garcia@uc3m.es>"
 
+        '
+name: Dependabot auto-merge
+on:
+  repository_dispatch:
+    types: trigger-ga___auto-merge.yml
 permissions:
   contents: write
   pull-requests: write
-
-jobs:
-  dependabot:
-    runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' }}
-    steps:
-      - name: Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@v2.1.0
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Enable auto-merge for Dependabot PRs
-        run: |
-          gh pr merge "$PR_URL" --auto --squash --body="Co-authored-by: Boni Garcia <boni.garcia@uc3m.es>"
-        env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}

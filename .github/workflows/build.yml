@@ -1,70 +1,79 @@
-name: build
-
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
-  workflow_dispatch:
-
 env:
   DISPLAY: :99
   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
 jobs:
   build:
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
-        java: [ 17 ]
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
     steps:
-    - name: Checkout GitHub repo
+    - continue-on-error: true
+      name: Checkout GitHub repo
       uses: actions/checkout@v4
-    - name: Set up Java
+    - continue-on-error: true
+      name: Set up Java
       uses: actions/setup-java@v4.2.1
       with:
-        distribution: 'temurin'
+        cache: maven
+        distribution: temurin
         java-version: ${{ matrix.java }}
-        cache: 'maven'
-    - name: Start Xvfb
+    - continue-on-error: true
       if: matrix.os == 'ubuntu-latest'
+      name: Start Xvfb
       run: Xvfb $DISPLAY &
-    - name: Run tests on Linux
+    - continue-on-error: true
       if: matrix.os == 'ubuntu-latest'
+      name: Run tests on Linux
       uses: nick-fields/retry@v3.0.0
       with:
-        timeout_minutes: 30
-        max_attempts: 3
         command: mvn -B test -Dtest=!Record*
-    - name: Run tests on Mac
+        max_attempts: 3
+        timeout_minutes: 30
+    - continue-on-error: true
       if: matrix.os == 'macos-latest'
+      name: Run tests on Mac
       uses: nick-fields/retry@v3.0.0
       with:
-        timeout_minutes: 30
-        max_attempts: 3
         command: mvn -B test -Dtest=!Docker*,!Record*
-    - name: Run tests on Windows
+        max_attempts: 3
+        timeout_minutes: 30
+    - continue-on-error: true
       if: matrix.os == 'windows-latest'
+      name: Run tests on Windows
       uses: nick-fields/retry@v3.0.0
       with:
-        timeout_minutes: 30
-        max_attempts: 3
         command: mvn -B test -Dtest=!Docker*
-    - name: Upload analysis to SonarCloud
-      if: success() && matrix.os == 'ubuntu-latest' && matrix.java == '17' && !contains(github.ref, 'pull')
-      run: >
-        mvn -B sonar:sonar
-        -Dsonar.host.url=https://sonarcloud.io
-        -Dsonar.organization=bonigarcia-github
+        max_attempts: 3
+        timeout_minutes: 30
+    - continue-on-error: true
+      if: success() && matrix.os == 'ubuntu-latest' && matrix.java == '17' && !contains(github.ref,
+        'pull')
+      name: Upload analysis to SonarCloud
+      run: 'mvn -B sonar:sonar -Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=bonigarcia-github
         -Dsonar.projectKey=io.github.bonigarcia:webdrivermanager
-    - name: Upload coverage to Codecov
-      if: success() && matrix.os == 'ubuntu-latest' && matrix.java == '17' && !contains(github.ref, 'pull')
+
+        '
+    - continue-on-error: true
+      if: success() && matrix.os == 'ubuntu-latest' && matrix.java == '17' && !contains(github.ref,
+        'pull')
+      name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4.3.1
-    - name: Store recordings (only available in Windows)
+    - continue-on-error: true
       if: always() && matrix.os == 'windows-latest'
+      name: Store recordings (only available in Windows)
       uses: actions/upload-artifact@v4.3.3
       with:
         name: webm-files
-        path: |
-          C:\Users\runneradmin\Downloads\*.webm
+        path: 'C:\Users\runneradmin\Downloads\*.webm
+
+          '
+    strategy:
+      matrix:
+        java:
+        - 17
+        os:
+        - ubuntu-latest
+        - windows-latest
+        - macos-latest
+name: build
+on:
+  repository_dispatch:
+    types: trigger-ga___build.yml

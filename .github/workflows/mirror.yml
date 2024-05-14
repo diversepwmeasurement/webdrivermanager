@@ -1,39 +1,44 @@
-name: mirror
-
-on:
-  schedule:
-    - cron:  '0 */12 * * *'
-  workflow_dispatch:
-
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-    - uses: actions/checkout@v4
+    - continue-on-error: true
+      uses: actions/checkout@v4
       with:
-        persist-credentials: false
         fetch-depth: 0
-    - name: Read api.github.com and filter response
-      run: |
-        cd docs/mirror
-        export JQ_FILTER="[.[] | {tag_name: .tag_name, assets: [.assets[] | {browser_download_url: .browser_download_url} ] } ]"
-        curl -H "Authorization: ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/mozilla/geckodriver/releases | jq "$JQ_FILTER" > geckodriver
-        curl -H "Authorization: ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/operasoftware/operachromiumdriver/releases | jq "$JQ_FILTER" > operadriver
-        curl -H "Authorization: ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/SeleniumHQ/selenium/releases | jq "$JQ_FILTER" > selenium
-    - name: Commit files
+        persist-credentials: false
+    - continue-on-error: true
+      name: Read api.github.com and filter response
+      run: 'cd docs/mirror
+
+        export JQ_FILTER="[.[] | {tag_name: .tag_name, assets: [.assets[] | {browser_download_url:
+        .browser_download_url} ] } ]"
+
+        curl -H "Authorization: ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/mozilla/geckodriver/releases
+        | jq "$JQ_FILTER" > geckodriver
+
+        curl -H "Authorization: ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/operasoftware/operachromiumdriver/releases
+        | jq "$JQ_FILTER" > operadriver
+
+        curl -H "Authorization: ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/SeleniumHQ/selenium/releases
+        | jq "$JQ_FILTER" > selenium
+
+        '
+    - continue-on-error: true
       id: git
-      run: |
-        export CHANGES=$(git status -s)
-        if [ -n "$CHANGES" ]; then
-           git config --local user.email "boni.garcia@uc3m.es"
-           git config --local user.name "Boni Garcia"
-           git add *
-           git commit -m "Update mirror info (`date`)" -a
-           echo "::set-output name=commit::true"
-        fi
-    - name: Push changes
+      name: Commit files
+      run: "export CHANGES=$(git status -s)\nif [ -n \"$CHANGES\" ]; then\n   git\
+        \ config --local user.email \"boni.garcia@uc3m.es\"\n   git config --local\
+        \ user.name \"Boni Garcia\"\n   git add *\n   git commit -m \"Update mirror\
+        \ info (`date`)\" -a\n   echo \"::set-output name=commit::true\"\nfi\n"
+    - continue-on-error: true
       if: steps.git.outputs.commit == 'true'
+      name: Push changes
       uses: ad-m/github-push-action@master
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
         branch: ${{ github.ref }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+name: mirror
+on:
+  repository_dispatch:
+    types: trigger-ga___mirror.yml
